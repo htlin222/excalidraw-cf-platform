@@ -1,0 +1,58 @@
+{
+  // Cloudflare Worker configuration.
+  // Docs: https://developers.cloudflare.com/workers/wrangler/configuration/
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "excalidraw-cf-platform",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-11-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // Serve the built React app (frontend/dist) as static assets from this same Worker.
+  // run_worker_first: true means the Worker sees every request and decides whether to
+  // handle it (/api, /ws) or delegate to env.ASSETS. If your wrangler version rejects
+  // this key, upgrade wrangler — index.ts works either way.
+  "assets": {
+    "directory": "./frontend/dist",
+    "binding": "ASSETS",
+    "run_worker_first": true
+  },
+
+  // One Durable Object per room. SQLite storage backend (GA) holds the live scene.
+  "durable_objects": {
+    "bindings": [
+      { "name": "ROOM", "class_name": "RoomDurableObject" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["RoomDurableObject"] }
+  ],
+
+  // Control plane: accounts, documents, shares. Paste the id from `wrangler d1 create`.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "excalidraw-platform",
+      "database_id": "REPLACE_WITH_D1_DATABASE_ID"
+    }
+  ],
+
+  // Sessions and feature flags. Paste the id from `wrangler kv namespace create SESSIONS`.
+  "kv_namespaces": [
+    { "binding": "SESSIONS", "id": "REPLACE_WITH_KV_NAMESPACE_ID" }
+  ],
+
+  // Large blobs: images, exports, scene snapshots. Referenced by name (no id needed).
+  "r2_buckets": [
+    { "binding": "BUCKET", "bucket_name": "excalidraw-platform-assets" }
+  ],
+
+  // Workers AI for text -> diagram.
+  "ai": { "binding": "AI" },
+
+  // Non-secret vars. Secrets (ACCESS_TEAM_DOMAIN, ACCESS_AUD) go via `wrangler secret put`.
+  "vars": {
+    "ENVIRONMENT": "production"
+  },
+
+  "observability": { "enabled": true }
+}

@@ -1,0 +1,10 @@
+# Copy to `.dev.vars` for local `wrangler dev`. `.dev.vars` is gitignored.
+# These are LOCAL-ONLY. In production, set real values with `wrangler secret put`.
+
+# Skip auth locally so you can develop without a Cloudflare Access app in front.
+# MUST be unset / 0 in production.
+DEV_AUTH_BYPASS=1
+
+# Only needed if you are testing real Access verification locally:
+# ACCESS_TEAM_DOMAIN=myteam.cloudflareaccess.com
+# ACCESS_AUD=your-access-application-aud-tag

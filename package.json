@@ -1,0 +1,27 @@
+{
+  "name": "excalidraw-cf-platform",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Self-hosted collaborative Excalidraw platform on Cloudflare (Workers, Durable Objects, D1, KV, R2, Workers AI).",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "provision": "bash scripts/provision.sh",
+    "db:apply": "wrangler d1 execute excalidraw-platform --remote --file=./schema.sql",
+    "db:apply:local": "wrangler d1 execute excalidraw-platform --local --file=./schema.sql",
+    "frontend:install": "npm --prefix frontend install",
+    "frontend:build": "npm --prefix frontend run build",
+    "dev": "bash scripts/dev.sh",
+    "deploy": "bash scripts/deploy.sh",
+    "typecheck": "tsc --noEmit",
+    "cf-typegen": "wrangler types"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "wrangler": "^4.0.0",
+    "@cloudflare/workers-types": "^4.20241127.0"
+  },
+  "dependencies": {
+    "jose": "^5.9.6"
+  }
+}

@@ -1,0 +1,33 @@
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install
+        run: |
+          npm ci
+          npm --prefix frontend ci
+
+      - name: Build frontend
+        run: npm --prefix frontend run build
+
+      - name: Deploy Worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    # Set repository secrets CLOUDFLARE_API_TOKEN (with Workers + D1 + KV + R2 + AI
+    # permissions) and CLOUDFLARE_ACCOUNT_ID. Resource IDs must already be in
+    # wrangler.jsonc, and the schema applied once via `wrangler d1 execute`.
