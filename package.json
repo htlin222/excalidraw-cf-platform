@@ -1,7 +1,6 @@
 {
   "name": "excalidraw-cf-platform",
   "version": "0.1.0",
-  "private": true,
   "description": "Self-hosted collaborative Excalidraw platform on Cloudflare (Workers, Durable Objects, D1, KV, R2, Workers AI).",
   "license": "MIT",
   "type": "module",
@@ -17,9 +16,9 @@
     "cf-typegen": "wrangler types"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241127.0",
     "typescript": "^5.6.3",
-    "wrangler": "^4.0.0",
-    "@cloudflare/workers-types": "^4.20241127.0"
+    "wrangler": "4.0.0"
   },
   "dependencies": {
     "jose": "^5.9.6"

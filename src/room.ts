@@ -101,7 +101,7 @@ export class RoomDurableObject extends DurableObject<Env> {
       case "pointer": {
         // Ephemeral: never stored, just relayed to peers. High-frequency — the client
         // throttles these to ~20/s.
-        const out: ServerMessage = { type: "pointer", ...msg };
+        const out: ServerMessage = { ...msg };
         this.broadcast(JSON.stringify(out), ws);
         return;
       }

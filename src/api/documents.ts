@@ -42,6 +42,38 @@ export async function handleDocuments(
     return json({ id, title }, 201);
   }
 
+  // Link sharing: /api/documents/:id/share
+  const shareMatch = path.match(/^\/api\/documents\/([A-Za-z0-9-]+)\/share$/);
+  if (shareMatch) {
+    const docId = shareMatch[1]!;
+    if (!(await canAccess(env, user, docId))) {
+      return json({ error: "not found" }, 404);
+    }
+
+    if (method === "GET") {
+      const share = await getShare(env, docId, request);
+      return json({ share });
+    }
+
+    if (method === "PATCH") {
+      if (!(await canOwnDocument(env, user, docId))) {
+        return json({ error: "forbidden" }, 403);
+      }
+
+      const body = (await safeJson(request)) as { active?: boolean };
+      if (typeof body.active !== "boolean") {
+        return json({ error: "active boolean required" }, 400);
+      }
+
+      const share = body.active
+        ? await activateShare(env, user, docId, request)
+        : await deactivateShare(env, docId, request);
+      return json({ share });
+    }
+
+    return json({ error: "not found" }, 404);
+  }
+
   // Routes on a specific document: /api/documents/:id
   const match = path.match(/^\/api\/documents\/([A-Za-z0-9-]+)$/);
   if (match) {
@@ -90,7 +122,7 @@ export async function handleDocuments(
   return json({ error: "not found" }, 404);
 }
 
-async function canAccess(env: Env, user: User, docId: string): Promise<boolean> {
+export async function canAccess(env: Env, user: User, docId: string): Promise<boolean> {
   const row = await env.DB.prepare(
     `SELECT 1 FROM documents d
        LEFT JOIN shares s ON s.document_id = d.id AND s.user_id = ?2
@@ -99,6 +131,97 @@ async function canAccess(env: Env, user: User, docId: string): Promise<boolean> 
     .bind(docId, user.id)
     .first();
   return !!row;
+}
+
+export async function canOwnDocument(env: Env, user: User, docId: string): Promise<boolean> {
+  const row = await env.DB.prepare(`SELECT 1 FROM documents WHERE id = ? AND owner_id = ?`)
+    .bind(docId, user.id)
+    .first();
+  return !!row;
+}
+
+async function getShare(env: Env, docId: string, request: Request): Promise<SharePayload> {
+  const row = await env.DB.prepare(
+    `SELECT code, active, updated_at FROM document_links WHERE document_id = ?`
+  )
+    .bind(docId)
+    .first<ShareRow>();
+  return sharePayload(row, request);
+}
+
+async function activateShare(
+  env: Env,
+  user: User,
+  docId: string,
+  request: Request
+): Promise<SharePayload> {
+  const existing = await env.DB.prepare(
+    `SELECT code, active, updated_at FROM document_links WHERE document_id = ?`
+  )
+    .bind(docId)
+    .first<ShareRow>();
+
+  if (!existing) {
+    await env.DB.prepare(
+      `INSERT INTO document_links (document_id, code, active, created_by)
+       VALUES (?, ?, 1, ?)`
+    )
+      .bind(docId, randomShareCode(), user.id)
+      .run();
+  } else {
+    await env.DB.prepare(
+      `UPDATE document_links SET active = 1, updated_at = unixepoch() WHERE document_id = ?`
+    )
+      .bind(docId)
+      .run();
+  }
+
+  return getShare(env, docId, request);
+}
+
+async function deactivateShare(
+  env: Env,
+  docId: string,
+  request: Request
+): Promise<SharePayload> {
+  await env.DB.prepare(
+    `UPDATE document_links SET active = 0, updated_at = unixepoch() WHERE document_id = ?`
+  )
+    .bind(docId)
+    .run();
+  return getShare(env, docId, request);
+}
+
+function sharePayload(row: ShareRow | null, request: Request): SharePayload {
+  if (!row) return { active: false, code: null, url: null };
+  const code = row.code;
+  const url = `${requestOrigin(request)}/share/${code}`;
+  return { active: row.active === 1, code, url };
+}
+
+function requestOrigin(request: Request): string {
+  const url = new URL(request.url);
+  const host = request.headers.get("host") || url.host;
+  const proto = request.headers.get("x-forwarded-proto") || url.protocol.replace(":", "");
+  return `${proto}://${host}`;
+}
+
+function randomShareCode(): string {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+interface ShareRow {
+  code: string;
+  active: number;
+  updated_at?: number;
+}
+
+interface SharePayload {
+  active: boolean;
+  code: string | null;
+  url: string | null;
 }
 
 function json(data: unknown, status = 200): Response {

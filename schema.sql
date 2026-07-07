@@ -28,6 +28,18 @@ CREATE TABLE IF NOT EXISTS shares (
 );
 CREATE INDEX IF NOT EXISTS idx_shares_user ON shares(user_id);
 
+-- Opaque share links for live collaborative editing. The code is a high-entropy,
+-- SHA-like token used in /share/:code URLs; active=0 disables new link joins.
+CREATE TABLE IF NOT EXISTS document_links (
+  document_id TEXT PRIMARY KEY REFERENCES documents(id) ON DELETE CASCADE,
+  code        TEXT NOT NULL UNIQUE,
+  active      INTEGER NOT NULL DEFAULT 0,
+  created_by  TEXT NOT NULL REFERENCES users(id),
+  created_at  INTEGER NOT NULL DEFAULT (unixepoch()),
+  updated_at  INTEGER NOT NULL DEFAULT (unixepoch())
+);
+CREATE INDEX IF NOT EXISTS idx_document_links_code ON document_links(code);
+
 -- Reserved for Milestone 6 (multi-tenant). Left here so migrations stay additive.
 -- CREATE TABLE IF NOT EXISTS workspaces (...);
 -- CREATE TABLE IF NOT EXISTS workspace_members (...);

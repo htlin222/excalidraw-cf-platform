@@ -2,12 +2,13 @@ import type { Env } from "../types";
 
 // Model names change over time. Verify the current catalog with `wrangler ai models`
 // and update if a better instruct model is available.
-const TEXT_MODEL = "@cf/meta/llama-3.1-8b-instruct";
+const TEXT_MODEL = "@cf/mistralai/mistral-small-3.1-24b-instruct";
 
 const SYSTEM_PROMPT =
-  "You convert a description into a single valid Mermaid diagram. " +
-  "Reply with ONLY the Mermaid source code — no prose, no markdown fences, no explanation. " +
-  "Prefer 'flowchart TD' unless a sequence or state diagram fits better.";
+  "You convert a description into a single valid Mermaid flowchart. " +
+  "Reply with ONLY Mermaid source code: no prose, no markdown fences, no explanation. " +
+  "Use this syntax style: flowchart TD\\n  A[User signs up] --> B[Send verification email]\\n  B --> C[User verifies email]. " +
+  "Use simple letter node IDs. Do not use sequence arrows like ->>.";
 
 /**
  * POST /api/ai/diagram  { "prompt": "user signs up then verifies email" }
@@ -29,9 +30,13 @@ export async function handleAi(request: Request, env: Env, path: string): Promis
           { role: "user", content: prompt.slice(0, 2000) },
         ],
         max_tokens: 512,
-      })) as { response?: string };
+        temperature: 0.2,
+      })) as {
+        response?: string;
+        choices?: { message?: { content?: string } }[];
+      };
 
-      const mermaid = cleanMermaid(result.response || "");
+      const mermaid = cleanMermaid(result.response || result.choices?.[0]?.message?.content || "");
       if (!mermaid) return json({ error: "empty generation" }, 502);
       return json({ mermaid });
     } catch (err) {

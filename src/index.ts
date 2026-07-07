@@ -1,6 +1,7 @@
 import type { Env, PresenceUser } from "./types";
 import { authenticate, upsertUser } from "./auth";
-import { handleDocuments } from "./api/documents";
+import { canAccess, handleDocuments } from "./api/documents";
+import { handleShare, shareCodeMatches } from "./api/share";
 import { handleAi } from "./api/ai";
 
 // The Durable Object class must be exported from the Worker's entry module.
@@ -20,8 +21,12 @@ export default {
       const user = await authenticate(request, env);
       if (!user) return new Response("Unauthorized", { status: 401 });
 
-      // (Milestone 5) enforce per-document role here before routing viewers, etc.
       const roomId = wsMatch[1]!;
+      const shareCode = url.searchParams.get("share");
+      const canUseRoom =
+        (await canAccess(env, user, roomId)) || (await shareCodeMatches(env, shareCode, roomId));
+      if (!canUseRoom) return new Response("Forbidden", { status: 403 });
+
       const stub = env.ROOM.get(env.ROOM.idFromName(roomId));
 
       // Pass identity to the DO via query params; it attaches them for presence.
@@ -51,6 +56,7 @@ export default {
         });
       }
       if (path.startsWith("/api/documents")) return handleDocuments(request, env, user, path);
+      if (path.startsWith("/api/share/")) return handleShare(request, env, path);
       if (path.startsWith("/api/ai/")) return handleAi(request, env, path);
 
       return new Response(JSON.stringify({ error: "not found" }), {

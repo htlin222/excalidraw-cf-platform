@@ -54,7 +54,8 @@ export class RoomClient {
   constructor(
     private roomId: string,
     private user: PresenceUser,
-    private handlers: RoomHandlers
+    private handlers: RoomHandlers,
+    private shareCode?: string | null
   ) {
     this.connect();
   }
@@ -66,6 +67,7 @@ export class RoomClient {
       name: this.user.name,
       color: this.user.color,
     });
+    if (this.shareCode) params.set("share", this.shareCode);
     const ws = new WebSocket(`${proto}//${location.host}/ws/${this.roomId}?${params}`);
     this.ws = ws;
 
